@@ -1,63 +1,60 @@
 import React, { useState, useEffect } from "react";
-import { DayPilotCalendar } from "./DayPilotCalendar";
+import { DayPilotCalendar } from "@daypilot/daypilot-lite-react";
 import { fetchSessions, createSession, deleteSession } from "../services/api";
-
-const fakeEvents = [
-  {
-    id: "1",
-    text: "CSCI 201 Office Hour - Prof. Smith",
-    start: "2025-04-28T10:00:00",
-    end: "2025-04-28T11:00:00",
-  },
-  {
-    id: "2",
-    text: "CSCI 270 Study Session - TA Lee",
-    start: "2025-04-29T14:00:00",
-    end: "2025-04-29T15:30:00",
-  },
-  {
-    id: "3",
-    text: "CSCI 356 Review - TA Johnson",
-    start: "2025-04-30T09:30:00",
-    end: "2025-04-30T10:30:00",
-  },
-];
 
 function TAView() {
   const [events, setEvents] = useState([]);
 
   useEffect(() => {
-    setEvents(fakeEvents);
+    async function loadSessions() {
+      try {
+        const data = await fetchSessions();
+        setEvents(data);
+      } catch (error) {
+        console.error("Failed to fetch sessions:", error);
+      }
+    }
+    loadSessions();
   }, []);
 
   const onTimeRangeSelected = async (args) => {
     const sessionName = prompt("Enter session class name:");
     if (!sessionName) return;
-    await createSession({
-      text: sessionName,
-      start: args.start.toString(),
-      end: args.end.toString(),
-    });
-    const updated = await fetchSessions();
-    setEvents(updated);
+    try {
+      await createSession({
+        text: sessionName,
+        start: args.start.toString(),
+        end: args.end.toString(),
+      });
+      const updated = await fetchSessions();
+      setEvents(updated);
+      alert("Session created successfully!");
+    } catch (error) {
+      console.error("Failed to create session:", error);
+    }
   };
 
   const onEventClick = async (args) => {
-    if (window.confirm("Delete this session?")) {
-      await deleteSession(args.e.data.id);
-      const updated = await fetchSessions();
-      setEvents(updated);
+    if (window.confirm(`Delete session "${args.e.text()}"?`)) {
+      try {
+        await deleteSession(args.e.data.id);
+        const updated = await fetchSessions();
+        setEvents(updated);
+        alert("Session deleted successfully!");
+      } catch (error) {
+        console.error("Failed to delete session:", error);
+      }
     }
   };
 
   return (
     <div>
-      <h1>TA Schedule Helper</h1>
+      <h1>TA Schedule Manager</h1>
       <DayPilotCalendar
-        viewType="Week"
+        viewType={"Week"}
+        events={{ list: events }}
         onTimeRangeSelected={onTimeRangeSelected}
         onEventClick={onEventClick}
-        events={{ list: events }}
       />
     </div>
   );
