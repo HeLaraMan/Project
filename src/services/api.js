@@ -1,4 +1,4 @@
-const BACKEND_URL = "http://localhost:8080/your-backend-name"; // CHANGE this to match your Eclipse project backend
+const BACKEND_URL = "http://localhost:8080/finalproject"; // CHANGE this to match your Eclipse project backend
 
 export async function fetchSessions() {
   const res = await fetch(`${BACKEND_URL}/sessions`);
