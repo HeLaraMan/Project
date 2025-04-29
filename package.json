@@ -2,6 +2,7 @@
   "name": "my-ta-office-hours",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/finalproject",
   "dependencies": {
     "@daypilot/daypilot-lite-react": "^3.32.1",
     "@testing-library/dom": "^10.4.0",

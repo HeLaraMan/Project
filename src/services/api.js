@@ -1,5 +1,4 @@
-const BACKEND_URL = "http://localhost:8080/finalproject"; // CHANGE this to match your Eclipse project backend
-
+const BACKEND_URL = "http://localhost:8080/finalproject";
 export async function fetchSessions() {
   const res = await fetch(`${BACKEND_URL}/sessions`);
   return res.json();
@@ -32,4 +31,3 @@ export async function removeSignup(sessionId) {
     method: "DELETE",
   });
 }
-

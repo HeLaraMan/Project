@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DayPilotCalendar } from "@daypilot/daypilot-lite-react";
 import { fetchSessions, createSession, deleteSession } from "../services/api";
 
 function TAView() {
   const [events, setEvents] = useState([]);
+  const calendarRef = useRef();
 
   useEffect(() => {
     async function loadSessions() {
@@ -15,6 +16,13 @@ function TAView() {
       }
     }
     loadSessions();
+  }, []);
+
+  useEffect(() => {
+    // Force refresh calendar view after mount
+    if (calendarRef.current && calendarRef.current.control) {
+      calendarRef.current.control.update();
+    }
   }, []);
 
   const onTimeRangeSelected = async (args) => {
@@ -51,6 +59,7 @@ function TAView() {
     <div>
       <h1>TA Schedule Manager</h1>
       <DayPilotCalendar
+        ref={calendarRef}
         viewType={"Week"}
         events={{ list: events }}
         onTimeRangeSelected={onTimeRangeSelected}

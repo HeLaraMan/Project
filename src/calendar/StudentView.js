@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { DayPilotCalendar } from "@daypilot/daypilot-lite-react";
 import { fetchSessions, signUpSession } from "../services/api";
 
 function StudentView() {
   const [events, setEvents] = useState([]);
+  const calendarRef = useRef();
 
   useEffect(() => {
     async function loadSessions() {
@@ -15,6 +16,13 @@ function StudentView() {
       }
     }
     loadSessions();
+  }, []);
+
+  useEffect(() => {
+    // Force refresh calendar view after mount
+    if (calendarRef.current && calendarRef.current.control) {
+      calendarRef.current.control.update();
+    }
   }, []);
 
   const onEventClick = async (args) => {
@@ -32,6 +40,7 @@ function StudentView() {
     <div>
       <h1>Student TA Session Selector</h1>
       <DayPilotCalendar
+        ref={calendarRef}
         viewType={"Week"}
         events={{ list: events }}
         onEventClick={onEventClick}
