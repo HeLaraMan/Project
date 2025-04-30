@@ -1,0 +1,14 @@
+# Eclipse and Java
+.settings/
+.classpath
+.project
+target/
+bin/
+
+# React build if you temporarily store it here
+build/
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db

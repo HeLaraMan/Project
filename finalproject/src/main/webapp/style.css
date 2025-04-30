@@ -1,0 +1,369 @@
+@charset "UTF-8";
+
+/*responsive header skeleton code from https://www.w3schools.com/howto/howto_css_responsive_header.asp */
+.header {
+	overflow: hidden;
+	background-color: #f8f9fa;
+	padding: 5px 10px;
+}
+
+.header a {
+	float: left;
+	color: black;
+	text-align: center;
+	padding: 12px;
+	text-decoration: none;
+	font-size: 14px;
+	font-family: sans-serif;
+	line-height: 14px;
+	border-radius: 4px;
+}
+
+.header a.blue-button {
+	background-color: #004d8f;
+	color: white;
+}
+
+.header-right {
+	float: right;
+}
+
+.header-left {
+	float: left;
+}
+
+.form {
+	display: inline-block;
+	width: 300px;
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%,-50%);
+	font-family: sans-serif;
+}
+
+.box {
+	border-style: solid;
+	border-width: 2px;
+	border-radius: 5px;
+	border-color: #cbcccc;
+	padding: 20px;
+}
+
+.labels {
+	font-size: 14px;
+	color: #848484;
+}
+
+.account {
+	font-size: 14px;
+	color: #848484;
+	margin-top: 5px;
+	margin-bottom: 15px;
+}
+
+/*This class was helped by https://stackoverflow.com/a/40261155*/
+.icon {
+	border-color: red !important;
+  	background: url("images/input_warning.png") no-repeat right;
+	background-size: 20px;
+}
+
+.invalid-email {
+	font-size: 14px;
+	color: red;
+	margin-top: 5px;
+	margin-bottom: 5px;
+}
+
+/*skeleton code from https://www.w3schools.com/css/css_form.asp*/
+.form input[type=text] {
+	width: 100%;
+	padding: 5px 5px;
+	margin: 4px 0;
+	box-sizing: border-box;
+	border: 1px solid;
+	border-radius: 2px;
+	border-color: #cbcccc;
+	cursor: pointer;
+}
+
+.form input[type=email] {
+	width: 100%;
+	padding: 5px 5px;
+	margin: 4px 0;
+	box-sizing: border-box;
+	border: 1px solid;
+	border-radius: 2px;
+	border-color: #cbcccc;
+	cursor: pointer;
+}
+
+.form input[type=password] {
+	width: 100%;
+	padding: 5px 5px;
+	margin: 4px 0;
+	box-sizing: border-box;
+	border: 1px solid;
+	border-radius: 2px;
+	border-color: #cbcccc;
+	cursor: pointer;
+}
+
+.form button[type=submit] {
+	width: 100%;
+	padding: 5px 5px;
+	margin: 4px 0;
+	box-sizing: border-box;
+	border: 1px solid;
+	border-radius: 4px;
+	border-color: #cbcccc;
+  
+	background-color: #678bb7;
+	color: white;
+}
+
+button.active {
+	background-color: #084b8d !important;
+	color: white;
+  	cursor: pointer;
+}
+
+p.title {
+	font-size: 30px;
+	line-height: 5px;
+}
+
+a.register {
+	color: #688bb2;
+}
+
+p.gray {
+	color: #848484;
+	font-size: 14px;
+	text-align: center;
+}
+
+.searchbar{
+    width: 500px;
+    display: inline-block;
+    position: absolute;
+	top: 15%;
+	left: 50%;
+	transform: translate(-50%,-50%);
+	font-family: sans-serif;
+	
+	border-style: solid;
+	border-width: 2px;
+	border-radius: 50px;
+	border-color: #cbcccc;
+}
+
+/*aid from https://stackoverflow.com/questions/40503107/put-a-button-inside-the-text-box*/
+.searchbar input:focus, .searchbar input:active {
+    outline: none;
+}
+.searchbar input {
+    width: 80%;
+    border: none;
+    cursor: pointer;
+}
+
+/*search bar skeleton code from https://www.w3schools.com/howto/howto_css_searchbar.asp*/
+.searchbar input[type=text] {
+  	width: 300px;
+  	padding: 8px 8px;
+  	margin: 8px;
+  	font-size: 14px;
+  	border: none;
+  	border-radius: 4px;
+  	border-color: #cbcccc;
+	box-sizing: border-box;
+}
+
+.searchbar button[type=submit] {
+    float: left;
+  	padding: 6px 10px;
+  	margin-top: 4px;
+  	margin-left: 8px;
+  	border: none;
+  	cursor: pointer;
+  	background-color: transparent;
+}
+
+.searchbar img {
+	opacity: 0.2;
+}
+
+.searchbar img:hover {
+	opacity: 1;
+}
+
+.searchbar button[type=reset] {
+  	float: right;
+  	padding: 6px 10px;
+  	margin-top: 4px;
+  	margin-right: 8px;
+  	border: none;
+  	cursor: pointer;
+  	background-color: transparent;
+}
+
+.searchbar form:focus-within {
+	border-style: solid;
+	border-width: 2px;
+	border-radius: 50px;
+	border-color: #f57329;
+}
+
+/*display of search results, skeleton code from https://www.w3schools.com/howto/howto_css_cards.asp*/
+
+/*https://www.w3schools.com/css/css3_flexbox_container.asp*/
+.card-row {
+	margin-top: 100px;
+	margin-left: 75px;
+	display: flex;
+	flex-wrap: nowrap;
+	overflow-x: auto;
+	gap: 5px;
+}
+
+.card {
+	width: 200px;
+	margin: 10px;
+	float: left;
+	background-color: #205375;
+	text-align: center;
+	cursor: pointer;
+}
+
+.card img {
+	width: 175px;
+	height: 175px;
+	border-radius: 200px;
+	border: 4px solid white;
+	margin-top: 20px;
+	margin-left: 10px;
+	margin-right: 10px;
+}
+
+.card:hover {
+	background-color: #112B3C;
+}
+
+.card-clicked {
+	background-color: #112B3C;
+}
+
+.container {
+	text-align: center;
+	font-family: sans-serif;
+	color: white;
+  	padding: 10px;
+  	font-size: 18px;
+}
+
+/*making a "no results" button*/
+.noresults {
+	margin: auto;
+	margin-top: 35px;
+	height: 50px;
+	width: 500px;
+	background-color: #cccccc;
+	text-align: center;
+	border-radius: 10px;
+}
+
+.noresults p{
+	font-family: sans-serif;
+	font-size: 16px;
+	padding: 15px;
+}
+
+.noresults2 {
+	margin: auto;
+	margin-top: 100px;
+	height: 50px;
+	width: 500px;
+	background-color: #cccccc;
+	text-align: center;
+	border-radius: 10px;
+}
+
+.noresults2 p{
+	font-family: sans-serif;
+	font-size: 16px;
+	padding: 15px;
+}
+
+.loading {
+	display: block;
+	margin-left: auto;
+ 	margin-right: auto;
+	margin-top: 120px;
+	height: 80px;
+	width: 80px;
+}
+
+.loading2 {
+	text-align: center;
+}
+
+.loading2 img {
+	width: 80px;
+	height: 80px;
+	margin-top: 10px;
+}
+
+.bio {
+	text-align: center;
+	font-family: sans-serif;
+}
+
+.biotitle {
+	font-size: 21px;
+	margin: 0px;
+	margin-top: 15px;
+	margin-bottom: 5px;
+}
+
+.subtitle {
+	font-size: 18px;
+	margin: 10px;
+	margin-bottom: 0px;
+}
+
+.fulltext {
+	margin-top: 10px;
+	text-align: justify;
+	padding-left: 150px;
+	padding-right: 150px;
+	padding-bottom: 75px;
+	overflow: auto;
+}
+
+.starbutton {
+  background-color: transparent;
+  border: none;
+  font-size: 24px;
+}
+
+/*skeleton code from https://www.w3schools.com/howto/howto_css_fixed_footer.asp*/
+.footer {
+	position: fixed;
+	left: 0;
+	bottom: 0;
+	width: 100%;
+	color: white;
+	background-color: #182c3c;
+	padding: 5px;
+	text-align: center;
+	font-family: sans-serif;
+	font-size: 14px;
+}
+
+.footer a {
+	text-decoration: none;
+	color: white;
+	cursor: pointer;
+}
