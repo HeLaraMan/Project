@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DayPilotCalendar } from '@daypilot/daypilot-lite-react';
-import { fetchSessions, createSession, deleteSession } from '../services/api';
+import { fetchSessions, createSession, deleteSession, getCookie } from '../services/api';
 import './TAView.css';
 
 function TAView() {
@@ -39,6 +39,7 @@ function TAView() {
     try {
       await createSession({
         text: newSessionName,
+        email: getCookie(), // added this field to send the email to backend
         start: selectedTimeRange.start.toString(),
         end: selectedTimeRange.end.toString(),
       });
