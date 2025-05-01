@@ -23,7 +23,7 @@ CREATE TABLE Sessions (
   StartTime VARCHAR(45) NOT NULL, 
   EndTime VARCHAR(45) NOT NULL,
   FOREIGN KEY (UserID) REFERENCES Users(UserID),
-  FOREIGN KEY (CourseID) REFERENCES Cousrses(CourseID)
+  FOREIGN KEY (CourseID) REFERENCES Courses(CourseID)
 );
   
 CREATE TABLE Favorites (
@@ -31,5 +31,5 @@ CREATE TABLE Favorites (
   UserID INT NOT NULL,
   CourseID INT NOT NULL,
   FOREIGN KEY (UserID) REFERENCES Users(UserID),
-  FOREIGN KEY (CourseID) REFERENCES Cousrses(CourseID)
+  FOREIGN KEY (CourseID) REFERENCES Courses(CourseID)
 );
