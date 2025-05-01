@@ -2,8 +2,15 @@ package finalproject;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
+import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import com.google.gson.Gson;
@@ -12,15 +19,71 @@ import com.google.gson.Gson;
 public class OfficeHourServlet extends HttpServlet {
     private static final long serialVersionUID = 1L;
 
-    private static List<Session> sessions = new ArrayList<>();
-    private static int nextId = 1; // To generate session IDs
+    //FOR MY TEAMMATES: CHANGE THE DATABASE CREDENTIALS HERE
+    private static final String sqlusername= "root";
+    private static final String sqlpassword = "AWang@SQL01!";
+
+    @Override
+    public void init() throws ServletException {
+        super.init();
+        //from piazza post @311
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private Connection getConnection() throws SQLException {
+        return DriverManager.getConnection("jdbc:mysql://localhost:3306/finalproject", sqlusername, sqlpassword);
+    }
+
+    private static final String GET_ALL_SESSIONS = 
+            "SELECT s.SessionID, s.UserID, s.CourseID, s.StartTime, s.EndTime, " +
+            "u.fName, c.CourseName " + 
+            "FROM Sessions s " +
+            "JOIN Users u ON s.UserID = u.UserID " +
+            "JOIN Courses c ON s.CourseID = c.CourseID";
+    
+    private static final String INSERT_SESSION = 
+            "INSERT INTO Sessions (UserID, CourseID, StartTime, EndTime) VALUES (?, ?, ?, ?)";
+    
+    private static final String DELETE_SESSION = 
+            "DELETE FROM Sessions WHERE SessionID = ?";
 
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         response.setContentType("application/json");
         PrintWriter out = response.getWriter();
         Gson gson = new Gson();
-        out.print(gson.toJson(sessions));
+
+        List<Session> sessions = new ArrayList<>();
+        
+        try (Connection conn = getConnection();
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(GET_ALL_SESSIONS)) {
+            
+            while (rs.next()) {
+                Session session = new Session();
+                session.setId(rs.getInt("SessionID"));
+                session.setUserId(rs.getInt("UserID"));
+                session.setCourseId(rs.getInt("CourseID"));
+                session.setStart(rs.getString("StartTime"));
+                session.setEnd(rs.getString("EndTime"));
+                session.setInstructorName(rs.getString("fName"));
+                session.setCourseName(rs.getString("CourseName"));
+                
+                sessions.add(session);
+            }
+            
+            out.print(gson.toJson(sessions));
+            
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            out.print(gson.toJson(new ErrorResponse("Database error: " + e.getMessage())));
+            e.printStackTrace();
+        }
+        
         out.flush();
     }
 
@@ -28,10 +91,39 @@ public class OfficeHourServlet extends HttpServlet {
     protected void doPost(HttpServletRequest request, HttpServletResponse response) throws IOException {
         Gson gson = new Gson();
         Session newSession = gson.fromJson(request.getReader(), Session.class);
-        newSession.setId(nextId++);
-        sessions.add(newSession);
 
-        response.setStatus(HttpServletResponse.SC_CREATED);
+        try (Connection conn = getConnection();
+            PreparedStatement pstmt = conn.prepareStatement(INSERT_SESSION, Statement.RETURN_GENERATED_KEYS)) {
+            
+            pstmt.setInt(1, newSession.getUserId());
+            pstmt.setInt(2, newSession.getCourseId());
+            pstmt.setString(3, newSession.getStart());
+            pstmt.setString(4, newSession.getEnd());
+            
+            int affectedRows = pstmt.executeUpdate();
+            
+            if (affectedRows == 0) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().print(gson.toJson(new ErrorResponse("Creating session failed, no rows affected.")));
+                return;
+            }
+            
+            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
+                if (generatedKeys.next()) {
+                    newSession.setId(generatedKeys.getInt(1));
+                    response.setStatus(HttpServletResponse.SC_CREATED);
+                    response.getWriter().print(gson.toJson(newSession));
+                } else {
+                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                    response.getWriter().print(gson.toJson(new ErrorResponse("Creating session failed, no ID obtained.")));
+                }
+            }
+            
+        } catch (SQLException e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().print(gson.toJson(new ErrorResponse("Database error: " + e.getMessage())));
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -42,26 +134,74 @@ public class OfficeHourServlet extends HttpServlet {
             return;
         }
 
-        int id = Integer.parseInt(pathInfo.substring(1));
-        sessions.removeIf(session -> session.getId() == id);
-        response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+        try {
+            int id = Integer.parseInt(pathInfo.substring(1));
+            
+            try (Connection conn = getConnection();
+                PreparedStatement pstmt = conn.prepareStatement(DELETE_SESSION)) {
+                
+                pstmt.setInt(1, id);
+                int affectedRows = pstmt.executeUpdate();
+                
+                if (affectedRows == 0) {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    response.getWriter().print(new Gson().toJson(new ErrorResponse("Session with ID " + id + " not found.")));
+                } else {
+                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
+                }
+                
+            } catch (SQLException e) {
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().print(new Gson().toJson(new ErrorResponse("Database error: " + e.getMessage())));
+                e.printStackTrace();
+            }
+            
+        } catch (NumberFormatException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+            response.getWriter().print(new Gson().toJson(new ErrorResponse("Invalid session ID format.")));
+        }
     }
 
-    // Simple Session class
-    private static class Session {
+private static class Session {
         private int id;
-        private String text;
+        private int userId;
+        private int courseId;
         private String start;
         private String end;
-
-        // Getters and setters
+        private String instructorName;    // From Users table (fName)
+        private String courseName;       // From Courses table
+        
         public int getId() { return id; }
         public void setId(int id) { this.id = id; }
-        public String getText() { return text; }
-        public void setText(String text) { this.text = text; }
+        
+        public int getUserId() { return userId; }
+        public void setUserId(int userId) { this.userId = userId; }
+        
+        public int getCourseId() { return courseId; }
+        public void setCourseId(int courseId) { this.courseId = courseId; }
+        
         public String getStart() { return start; }
         public void setStart(String start) { this.start = start; }
+        
         public String getEnd() { return end; }
         public void setEnd(String end) { this.end = end; }
+        
+        public String getInstructorName() { return instructorName; }
+        public void setInstructorName(String instructorName) { this.instructorName = instructorName; }
+        
+        public String getCourseName() { return courseName; }
+        public void setCourseName(String courseName) { this.courseName = courseName; }
+    }
+
+    // Error response class for sending error details to client
+    private static class ErrorResponse {
+        private String error;
+        
+        public ErrorResponse(String error) {
+            this.error = error;
+        }
+        
+        public String getError() { return error; }
+        public void setError(String error) { this.error = error; }
     }
 }
