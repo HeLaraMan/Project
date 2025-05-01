@@ -23,8 +23,8 @@ public class LoginServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 	
 	//FOR MY TEAMMATES: CHANGE THE DATABASE CREDENTIALS HERE
-    String sqlusername= "root";
-    String sqlpassword = "AWang@SQL01!";
+    private static final String sqlusername= "root";
+    private static final String sqlpassword = "AWang@SQL01!";
     
 	Gson gson = new Gson(); 
 
