@@ -22,6 +22,7 @@ CREATE TABLE Sessions (
   CourseID INT NOT NULL, 
   StartTime VARCHAR(45) NOT NULL, 
   EndTime VARCHAR(45) NOT NULL,
+  notification_scheduled BOOLEAN DEFAULT FALSE,
   FOREIGN KEY (UserID) REFERENCES Users(UserID),
   FOREIGN KEY (CourseID) REFERENCES Courses(CourseID)
 );
@@ -32,4 +33,14 @@ CREATE TABLE Favorites (
   SessionID INT NOT NULL,
   FOREIGN KEY (UserID) REFERENCES Users(UserID),
   FOREIGN KEY (SessionID) REFERENCES Sessions(SessionID)
+);
+
+CREATE TABLE Notifications (
+  NotificationID INT AUTO_INCREMENT PRIMARY KEY,
+  UserID INT NOT NULL,
+  Title VARCHAR(255) NOT NULL,
+  Message TEXT NOT NULL,
+  Timestamp DATETIME NOT NULL,
+  Delivered BOOLEAN DEFAULT FALSE,
+  FOREIGN KEY (UserID) REFERENCES Users(UserID)
 );
