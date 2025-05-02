@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { DayPilotCalendar } from '@daypilot/daypilot-lite-react';
-import { fetchSessions, createSession, deleteSession, getCookie } from '../services/api';
+import { fetchSessions, createSession, deleteSession, getCookie, fetchCourses } from '../services/api';
 import './TAView.css';
 
 function TAView() {
@@ -8,12 +8,15 @@ function TAView() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [newSessionName, setNewSessionName] = useState('');
   const [selectedTimeRange, setSelectedTimeRange] = useState(null);
+  const [courses, setCourses] = useState([]);
+  const [selectedCourseId, setSelectedCourseId] = useState(null);
   const calendarRef = useRef();
 
   useEffect(() => {
     async function loadSessions() {
       try {
         const data = await fetchSessions();
+        console.log("Final mapped sessions:", data); // keep this for sanity check
         setEvents(data);
       } catch (error) {
         console.error('Failed to fetch sessions:', error);
@@ -29,6 +32,10 @@ function TAView() {
     }
   }, []);
 
+  useEffect(() => {
+  fetchCourses().then(setCourses);
+}, []);
+
   const onTimeRangeSelected = args => {
     setSelectedTimeRange(args);
     setIsModalOpen(true); // Open the modal
@@ -38,8 +45,9 @@ function TAView() {
     if (!newSessionName) return;
     try {
       await createSession({
-        text: newSessionName,
-        email: getCookie(), // added this field to send the email to backend
+        email: getCookie("loginemail"),
+        //userId: 1,  // make this dynamic later
+        courseName: newSessionName,
         start: selectedTimeRange.start.toString(),
         end: selectedTimeRange.end.toString(),
       });
@@ -54,14 +62,21 @@ function TAView() {
   };
 
   const onEventClick = async args => {
+    const sessionId = args.e?.data?.id;
+
+    if (!sessionId) {
+      alert("⚠️ This session has no ID and cannot be deleted.");
+      return;
+    }
+
     if (window.confirm(`Delete session "${args.e.text()}"?`)) {
       try {
-        await deleteSession(args.e.data.id);
+        await deleteSession(sessionId);
         const updated = await fetchSessions();
         setEvents(updated);
-        alert('Session deleted successfully!');
+        alert("Session deleted successfully!");
       } catch (error) {
-        console.error('Failed to delete session:', error);
+        console.error("Failed to delete session:", error.message);
       }
     }
   };
@@ -72,7 +87,7 @@ function TAView() {
       <DayPilotCalendar
         ref={calendarRef}
         viewType={'Week'}
-        events={{ list: events }}
+        events={events}
         onTimeRangeSelected={onTimeRangeSelected}
         onEventClick={onEventClick}
       />
@@ -80,6 +95,7 @@ function TAView() {
         <div className="modal-overlay">
           <div className="modal">
             <h2>Create New Session</h2>
+            
             <input
               type="text"
               placeholder="Enter session class name"

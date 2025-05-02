@@ -42,7 +42,7 @@ function StudentView() {
       <DayPilotCalendar
         ref={calendarRef}
         viewType={"Week"}
-        events={{ list: events }}
+        events={events}
         onEventClick={onEventClick}
       />
     </div>
