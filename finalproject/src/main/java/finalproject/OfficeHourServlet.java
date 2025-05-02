@@ -14,9 +14,37 @@ import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import com.google.gson.Gson;
+import java.util.Map;
+import java.util.HashMap;
+
+
 
 @WebServlet("/sessions")
 public class OfficeHourServlet extends HttpServlet {
+
+    // HashMap data structure for caching sessions
+    private static final Map<Integer, Session> sessionCache = new HashMap<>();
+    private static final long CACHE_TTL = 300000; // 5 minutes in milliseconds
+    private static final Map<Integer, Long> cacheTimestamps = new HashMap<>();
+
+    // Cache methods
+    private Session getFromCache(int sessionId) {
+        Long timestamp = cacheTimestamps.get(sessionId);
+        if (timestamp != null && System.currentTimeMillis() - timestamp < CACHE_TTL) {
+            return sessionCache.get(sessionId);
+        }
+        return null;
+    }
+
+    private void addToCache(Session session) {
+        sessionCache.put(session.getId(), session);
+        cacheTimestamps.put(session.getId(), System.currentTimeMillis());
+    }
+
+    private void removeFromCache(int sessionId) {
+        sessionCache.remove(sessionId);
+        cacheTimestamps.remove(sessionId);
+    }
     private static final long serialVersionUID = 1L;
 
     //FOR MY TEAMMATES: CHANGE THE DATABASE CREDENTIALS HERE
@@ -60,22 +88,34 @@ public class OfficeHourServlet extends HttpServlet {
         List<Session> sessions = new ArrayList<>();
         
         try (Connection conn = getConnection();
-            Statement stmt = conn.createStatement();
-            ResultSet rs = stmt.executeQuery(GET_ALL_SESSIONS)) {
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery(GET_ALL_SESSIONS)) {
+        
+        while (rs.next()) {
+            int sessionId = rs.getInt("SessionID");
             
-            while (rs.next()) {
-                Session session = new Session();
-                session.setId(rs.getInt("SessionID"));
-                session.setUserId(rs.getInt("UserID"));
-                session.setCourseId(rs.getInt("CourseID"));
-                session.setStart(rs.getString("StartTime"));
-                session.setEnd(rs.getString("EndTime"));
-                session.setInstructorName(rs.getString("fName"));
-                session.setCourseName(rs.getString("CourseName"));
-                
-                sessions.add(session);
+            // Try getting from cache first
+            Session cachedSession = getFromCache(sessionId);
+            if (cachedSession != null) {
+                sessions.add(cachedSession);
+                continue;
             }
             
+            // If not in cache, create new session from database
+            Session session = new Session();
+            session.setId(sessionId);
+            session.setUserId(rs.getInt("UserID"));
+            session.setCourseId(rs.getInt("CourseID"));
+            session.setStart(rs.getString("StartTime"));
+            session.setEnd(rs.getString("EndTime"));
+            session.setInstructorName(rs.getString("fName"));
+            session.setCourseName(rs.getString("CourseName"));
+            
+            sessions.add(session);
+            
+            // Add to cache
+            addToCache(session);
+        }            
             out.print(gson.toJson(sessions));
             
         } catch (SQLException e) {
