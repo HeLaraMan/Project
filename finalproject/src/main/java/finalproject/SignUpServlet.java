@@ -68,7 +68,6 @@ public class SignUpServlet extends HttpServlet {
         
         return searchRec(root.right, userId);
     }
-
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
         // Check if user is signed up using BST
