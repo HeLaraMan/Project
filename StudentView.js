@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { DayPilotCalendar } from "@daypilot/daypilot-lite-react";
-import { fetchSessions, signUpSession } from "../services/api";
+import { fetchSessions, signUpSession, getUserIdCookie } from "../services/api";
 import Toastify from "toastify-js";
 import "toastify-js/src/toastify.css";
 
@@ -21,7 +21,7 @@ function StudentView() {
   }, []);
 
   useEffect(() => {
-    const userID = null; // To be Implemented: Retrieve user ID
+    const userID = getUserIdCookie();
     if (!userID) return;
 
     const socket = new WebSocket(
