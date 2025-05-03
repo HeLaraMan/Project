@@ -2,6 +2,8 @@ import React from "react";
 import { BrowserRouter as Router, Routes, Route, Navigate, Link } from "react-router-dom";
 import TAView from "./calendar/TAView";
 import StudentView from "./calendar/StudentView";
+import GuestView from "./pages/guestView";
+import FavoritesPage from "./calendar/FavoritesPage";
 
 function App() {
   return (
@@ -14,9 +16,11 @@ function App() {
           </nav>
         {/* Routes */}
         <Routes>
-          <Route path="/" element={<Navigate to="/student" />} /> {/* Auto redirect */}
+          <Route path="/" element={<Navigate to="/guest" />} /> {/* Auto redirect */}
           <Route path="/ta" element={<TAView />} />
           <Route path="/student" element={<StudentView />} />
+          <Route path="/guest" element={<GuestView />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
         </Routes>
       </div>
     </Router>
