@@ -1,0 +1,59 @@
+.favorites-page {
+    max-width: 600px;
+    margin: 20px auto;
+    padding: 20px;
+  }
+  
+  .courses-list {
+    margin: 20px 0;
+  }
+  
+  .course-item {
+    padding: 15px;
+    margin: 10px 0;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    transition: all 0.2s;
+  }
+  
+  .course-item:hover {
+    background-color: #f5f5f5;
+  }
+  
+  .course-item.selected {
+    border-color: #2262d0;
+    background-color: #b2c5ff;
+  }
+  
+  .star {
+    color: #FFD700;
+    font-size: 20px;
+  }
+  
+  .actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-top: 30px;
+  }
+  
+  .actions button {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  
+  .actions button:first-child {
+    background-color: #2c60b4;
+    color: white;
+  }
+  
+  .actions button:last-child {
+    background-color: #548957;
+    color: white;
+  }
