@@ -70,14 +70,14 @@ export async function deleteSession(sessionId) {
 }
 
 export async function signUpSession(sessionId) {
-  const email = getCookie("loginemail");
+  const userId = getUserIdCookie();
 
   const res = await fetch(`${BACKEND_URL}/signup`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, sessionId }),
+    body: JSON.stringify({ userId: parseInt(userId), sessionId }),
   });
 
   if (!res.ok) {
@@ -87,9 +87,16 @@ export async function signUpSession(sessionId) {
 }
 
 export async function removeSignup(sessionId) {
-  await fetch(`${BACKEND_URL}/signup/${sessionId}`, {
+  const userId = getUserIdCookie();
+
+  const res = await fetch(`${BACKEND_URL}/signup/${userId}/${sessionId}`, {
     method: "DELETE",
   });
+
+  if (!res.ok) {
+    const message = await res.text();
+    throw new Error(message || "Failed to remove signup.");
+  }
 }
 
 export async function fetchCourses() {
