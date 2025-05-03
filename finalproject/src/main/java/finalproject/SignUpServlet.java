@@ -3,12 +3,16 @@ package finalproject;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.io.PrintWriter;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
@@ -24,35 +28,55 @@ public class SignUpServlet extends HttpServlet {
     
     // SQL queries
     private static final String GET_ALL_SIGNUPS = 
-            "SELECT UserID, SessionID FROM Signups";
+    "SELECT UserID, SessionID FROM Favorites";
     private static final String INSERT_SIGNUP = 
-            "INSERT INTO Signups (UserID, SessionID, SignupTime) VALUES (?, ?, ?)";
+        "INSERT INTO Favorites (UserID, SessionID) VALUES (?, ?)";
     private static final String DELETE_SIGNUP = 
-            "DELETE FROM Signups WHERE UserID = ? AND SessionID = ?";
+        "DELETE FROM Favorites WHERE UserID = ? AND SessionID = ?";
     private static final String FIND_SIGNUP = 
-            "SELECT COUNT(*) FROM Signups WHERE UserID = ? AND SessionID = ?";
-    
+        "SELECT COUNT(*) FROM Favorites WHERE UserID = ? AND SessionID = ?";
+
     // Binary Search Tree for tracking signups
     private static class SignupNode {
         int userId;
-        int sessionId;
-        long timestamp;
+        Map<Integer, Boolean> sessions; // Changed from Long to Boolean - we just need to track existence
         SignupNode left;
         SignupNode right;
         
-        SignupNode(int userId, int sessionId, long timestamp) {
+        SignupNode(int userId, int sessionId) {
             this.userId = userId;
-            this.sessionId = sessionId;
-            this.timestamp = timestamp;
+            this.sessions = new ConcurrentHashMap<>();
+            this.sessions.put(sessionId, true);
             this.left = null;
             this.right = null;
+        }
+        
+        // Add a session for this user
+        void addSession(int sessionId) {
+            this.sessions.put(sessionId, true);
+        }
+            
+        // Remove a session for this user
+        void removeSession(int sessionId) {
+            this.sessions.remove(sessionId);
+        }
+        
+        // Check if user has any sessions
+        boolean hasSessions() {
+            return !sessions.isEmpty();
+        }
+        
+        // Check if user is signed up for a specific session
+        boolean hasSession(int sessionId) {
+            return sessions.containsKey(sessionId);
         }
     }
 
     private SignupNode root = null;
+    private final ReadWriteLock treeLock = new ReentrantReadWriteLock();
     
-    // Cache to quickly find all sessions a user is signed up for
-    private Map<Integer, Map<Integer, Long>> userSessionMap = new HashMap<>();
+    // Use ConcurrentHashMap for thread safety
+    private Map<Integer, Map<Integer, Long>> userSessionMap = new ConcurrentHashMap<>();
 
     // Initialize BST from database on servlet startup
     @Override
@@ -76,17 +100,22 @@ public class SignUpServlet extends HttpServlet {
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(GET_ALL_SIGNUPS)) {
             
-            while (rs.next()) {
-                int userId = rs.getInt("UserID");
-                int sessionId = rs.getInt("SessionID");
-                long timestamp = System.currentTimeMillis(); // Use current time as fallback
-                
-                // Insert into BST
-                insertSignup(userId, sessionId, timestamp);
-                
-                // Also update the lookup map
-                userSessionMap.computeIfAbsent(userId, k -> new HashMap<>())
-                        .put(sessionId, timestamp);
+            treeLock.writeLock().lock();
+            try {
+                while (rs.next()) {
+                    int userId = rs.getInt("UserID");
+                    int sessionId = rs.getInt("SessionID");
+                    long timestamp = System.currentTimeMillis(); // Use current time as fallback
+                    
+                    // Insert into BST
+                    root = insertRec(root, userId, sessionId, timestamp);
+                    
+                    // Also update the lookup map
+                    userSessionMap.computeIfAbsent(userId, k -> new ConcurrentHashMap<>())
+                            .put(sessionId, timestamp);
+                }
+            } finally {
+                treeLock.writeLock().unlock();
             }
             
             getServletContext().log("Successfully loaded signups from database into BST");
@@ -95,7 +124,12 @@ public class SignUpServlet extends HttpServlet {
 
     // Insert into BST
     private void insertSignup(int userId, int sessionId, long timestamp) {
-        root = insertRec(root, userId, sessionId, timestamp);
+        treeLock.writeLock().lock();
+        try {
+            root = insertRec(root, userId, sessionId, timestamp);
+        } finally {
+            treeLock.writeLock().unlock();
+        }
     }
 
     private SignupNode insertRec(SignupNode root, int userId, int sessionId, long timestamp) {
@@ -109,17 +143,20 @@ public class SignUpServlet extends HttpServlet {
         } else if (userId > root.userId) {
             root.right = insertRec(root.right, userId, sessionId, timestamp);
         } else {
-            // User already exists, update session
-            root.sessionId = sessionId;
-            root.timestamp = timestamp;
+            // User already exists, add or update session
+            root.addSession(sessionId, timestamp);
         }
         
         return root;
     }
 
-    // Search in BST
     private SignupNode findUserSignup(int userId) {
-        return searchRec(root, userId);
+        treeLock.readLock().lock();
+        try {
+            return searchRec(root, userId);
+        } finally {
+            treeLock.readLock().unlock();
+        }
     }
 
     private SignupNode searchRec(SignupNode root, int userId) {
@@ -138,6 +175,30 @@ public class SignUpServlet extends HttpServlet {
     private boolean isUserSignedUp(int userId, int sessionId) {
         Map<Integer, Long> userSessions = userSessionMap.get(userId);
         return userSessions != null && userSessions.containsKey(sessionId);
+    }
+    
+    // BST-based lookup (less efficient but good for consistency check)
+    private boolean isUserSignedUpBST(int userId, int sessionId) {
+        SignupNode node = findUserSignup(userId);
+        return node != null && node.hasSession(sessionId);
+    }
+    
+    // Remove specific session from user in BST
+    private void removeSessionFromUser(int userId, int sessionId) {
+        treeLock.writeLock().lock();
+        try {
+            SignupNode node = searchRec(root, userId);
+            if (node != null) {
+                node.removeSession(sessionId);
+                
+                // If no sessions left, remove the entire node
+                if (!node.hasSessions()) {
+                    root = deleteRec(root, userId);
+                }
+            }
+        } finally {
+            treeLock.writeLock().unlock();
+        }
     }
     
     // Delete from BST
@@ -159,10 +220,20 @@ public class SignUpServlet extends HttpServlet {
             }
             
             // Node with two children: Get the inorder successor
-            root.userId = findMinValue(root.right);
+            int minValue = findMinValue(root.right);
             
-            // Delete the inorder successor
-            root.right = deleteRec(root.right, root.userId);
+            // Create a new node with the successor's userId but keep current sessions
+            SignupNode successor = searchRec(root.right, minValue);
+            if (successor != null) {
+                root.userId = minValue;
+                root.sessions = new ConcurrentHashMap<>(successor.sessions);
+                
+                // Delete the inorder successor
+                root.right = deleteRec(root.right, minValue);
+            } else {
+                // This should not happen in normal operation
+                root.right = deleteRec(root.right, minValue);
+            }
         }
         
         return root;
@@ -178,7 +249,12 @@ public class SignUpServlet extends HttpServlet {
     }
 
     private void removeSignup(int userId) {
-        root = deleteRec(root, userId);
+        treeLock.writeLock().lock();
+        try {
+            root = deleteRec(root, userId);
+        } finally {
+            treeLock.writeLock().unlock();
+        }
     }
 
     @Override
@@ -210,6 +286,7 @@ public class SignUpServlet extends HttpServlet {
                 int sessionId = Integer.parseInt(sessionIdParam);
                 
                 int count = 0;
+                // Iterate over a snapshot of the map to avoid ConcurrentModificationException
                 for (Map<Integer, Long> sessions : userSessionMap.values()) {
                     if (sessions.containsKey(sessionId)) {
                         count++;
@@ -261,19 +338,19 @@ public class SignUpServlet extends HttpServlet {
             
             pstmt.setInt(1, signupRequest.getUserId());
             pstmt.setInt(2, signupRequest.getSessionId());
-            pstmt.setLong(3, timestamp);
             
             int affected = pstmt.executeUpdate();
             
             if (affected > 0) {
-                // Database update successful, now update in-memory structures
-                
-                // Update BST
-                insertSignup(signupRequest.getUserId(), signupRequest.getSessionId(), timestamp);
-                
-                // Update lookup map
-                userSessionMap.computeIfAbsent(signupRequest.getUserId(), k -> new HashMap<>())
-                        .put(signupRequest.getSessionId(), timestamp);
+                // Database update successful, now update in-memory structures (atomically)
+                synchronized (this) {
+                    // Update BST
+                    insertSignup(signupRequest.getUserId(), signupRequest.getSessionId(), timestamp);
+                    
+                    // Update lookup map
+                    userSessionMap.computeIfAbsent(signupRequest.getUserId(), k -> new ConcurrentHashMap<>())
+                            .put(signupRequest.getSessionId(), timestamp);
+                }
                 
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().print(gson.toJson(Map.of("success", true)));
@@ -333,18 +410,18 @@ public class SignUpServlet extends HttpServlet {
                 int affected = pstmt.executeUpdate();
                 
                 if (affected > 0) {
-                    // Database deletion successful, now update in-memory structures
-                    
-                    // Update BST - for simplicity, we're just removing from the lookup map
-                    // In a production environment, you'd want to properly maintain the BST as well
-                    
-                    // Update lookup map
-                    Map<Integer, Long> userSessions = userSessionMap.get(userId);
-                    if (userSessions != null) {
-                        userSessions.remove(sessionId);
-                        if (userSessions.isEmpty()) {
-                            userSessionMap.remove(userId);
-                            removeSignup(userId); // Remove from BST if no more sessions
+                    // Database deletion successful, now update in-memory structures (atomically)
+                    synchronized (this) {
+                        // Update BST by removing the specific session
+                        removeSessionFromUser(userId, sessionId);
+                        
+                        // Update lookup map
+                        Map<Integer, Long> userSessions = userSessionMap.get(userId);
+                        if (userSessions != null) {
+                            userSessions.remove(sessionId);
+                            if (userSessions.isEmpty()) {
+                                userSessionMap.remove(userId);
+                            }
                         }
                     }
                     
