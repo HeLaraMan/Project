@@ -23,7 +23,7 @@ public class LoginServlet extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 	
 	//FOR MY TEAMMATES: CHANGE THE DATABASE CREDENTIALS HERE
-    private static final String sqlusername= "root";
+	private static final String sqlusername= "root";
     private static final String sqlpassword = "AWang@SQL01!";
     
 	Gson gson = new Gson(); 
@@ -52,7 +52,7 @@ public class LoginServlet extends HttpServlet {
         try {
         	//establish a connection with the database and query it
         	conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/finalproject", sqlusername, sqlpassword);
-        	ps = conn.prepareStatement("SELECT * FROM Users WHERE Email = ? AND Password = ?");
+        	ps = conn.prepareStatement("SELECT * FROM Users WHERE Email = ? AND pwd = ?");
             ps.setString(1, email);
             ps.setString(2, password);
             rs = ps.executeQuery();
@@ -63,11 +63,18 @@ public class LoginServlet extends HttpServlet {
                 res.message = "Successfully logged in.";
                 res.accountType = rs.getString("AccountType");
                 
+                //store userID for websocket access
+                int userId = rs.getInt("UserID");
+                Cookie userIdCookie = new Cookie("userid", String.valueOf(userId));
+                userIdCookie.setPath("/");
+                response.addCookie(userIdCookie);
+                
                 //store login credentials via cookie
                 //code borrowed from https://www.geeksforgeeks.org/servlet-login-and-logout-example-using-cookies/
                 Cookie c = new Cookie("loginemail", email);
                 c.setPath("/");
                 response.addCookie(c);
+                
             } 
             //else if the email is not already in the database, this person doesn't have an account
             else {

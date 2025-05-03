@@ -64,7 +64,7 @@ public class RegisterServlet extends HttpServlet {
             //else if the email is not already in the database, put them into the database and send back a response saying registration was successful
             else {
             	//code structure from https://stackoverflow.com/a/11804918
-            	PreparedStatement put = conn.prepareStatement("INSERT INTO Users (Name, Email, Password, AccountType) VALUES (?, ?, ?, ?)");
+            	PreparedStatement put = conn.prepareStatement("INSERT INTO Users (fName, Email, pwd, AccountType) VALUES (?, ?, ?, ?)");
             	put.setString(1, name);
             	put.setString(2, email);
             	put.setString(3, password);
