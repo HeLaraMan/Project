@@ -17,6 +17,16 @@ export function getCookie() {
   return decodeURIComponent(value); // account for encoded special character
 };
 
+export function getUserIdCookie() {
+  const cookie = document.cookie;
+  const prefix = 'userid=';
+  const start = cookie.indexOf(prefix);
+  if (start === -1) return null;
+  let end = cookie.indexOf(';', start);
+  if (end === -1) end = cookie.length;
+  return decodeURIComponent(cookie.substring(start + prefix.length, end).trim());
+}
+
 // Returns all sessions to be displayed on the calendar
 export async function fetchSessions() {
   const res = await fetch(`${BACKEND_URL}/sessions`);
