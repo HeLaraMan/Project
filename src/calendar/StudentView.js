@@ -13,7 +13,7 @@ function StudentView() {
       try {
         const data = await fetchSessions();
         const favorites = JSON.parse(localStorage.getItem('favoriteCourses') || '[]');
-         const events = data.map(event => ({ ...event,
+        const events = data.map(event => ({ ...event,
            backColor: favorites.some(fav => event.text.includes(fav)) ? '#FFD700' : '#E3F2FD'
          }));
         setEvents(data);
