@@ -39,7 +39,7 @@ public class SignUpServlet extends HttpServlet {
     // Binary Search Tree for tracking signups
     private static class SignupNode {
         int userId;
-        Map<Integer, Boolean> sessions; // Changed from Long to Boolean - we just need to track existence
+        Map<Integer, Boolean> sessions; // Changed to Boolean - we just need to track existence
         SignupNode left;
         SignupNode right;
         
@@ -55,7 +55,7 @@ public class SignUpServlet extends HttpServlet {
         void addSession(int sessionId) {
             this.sessions.put(sessionId, true);
         }
-            
+        
         // Remove a session for this user
         void removeSession(int sessionId) {
             this.sessions.remove(sessionId);
@@ -76,7 +76,7 @@ public class SignUpServlet extends HttpServlet {
     private final ReadWriteLock treeLock = new ReentrantReadWriteLock();
     
     // Use ConcurrentHashMap for thread safety
-    private Map<Integer, Map<Integer, Long>> userSessionMap = new ConcurrentHashMap<>();
+    private Map<Integer, Map<Integer, Boolean>> userSessionMap = new ConcurrentHashMap<>();
 
     // Initialize BST from database on servlet startup
     @Override
@@ -105,14 +105,13 @@ public class SignUpServlet extends HttpServlet {
                 while (rs.next()) {
                     int userId = rs.getInt("UserID");
                     int sessionId = rs.getInt("SessionID");
-                    long timestamp = System.currentTimeMillis(); // Use current time as fallback
                     
                     // Insert into BST
-                    root = insertRec(root, userId, sessionId, timestamp);
+                    root = insertRec(root, userId, sessionId);
                     
                     // Also update the lookup map
                     userSessionMap.computeIfAbsent(userId, k -> new ConcurrentHashMap<>())
-                            .put(sessionId, timestamp);
+                            .put(sessionId, true);
                 }
             } finally {
                 treeLock.writeLock().unlock();
@@ -123,28 +122,28 @@ public class SignUpServlet extends HttpServlet {
     }
 
     // Insert into BST
-    private void insertSignup(int userId, int sessionId, long timestamp) {
+    private void insertSignup(int userId, int sessionId) {
         treeLock.writeLock().lock();
         try {
-            root = insertRec(root, userId, sessionId, timestamp);
+            root = insertRec(root, userId, sessionId);
         } finally {
             treeLock.writeLock().unlock();
         }
     }
 
-    private SignupNode insertRec(SignupNode root, int userId, int sessionId, long timestamp) {
+    private SignupNode insertRec(SignupNode root, int userId, int sessionId) {
         if (root == null) {
-            return new SignupNode(userId, sessionId, timestamp);
+            return new SignupNode(userId, sessionId);
         }
         
         // We'll use userId as the key for the BST
         if (userId < root.userId) {
-            root.left = insertRec(root.left, userId, sessionId, timestamp);
+            root.left = insertRec(root.left, userId, sessionId);
         } else if (userId > root.userId) {
-            root.right = insertRec(root.right, userId, sessionId, timestamp);
+            root.right = insertRec(root.right, userId, sessionId);
         } else {
-            // User already exists, add or update session
-            root.addSession(sessionId, timestamp);
+            // User already exists, add session
+            root.addSession(sessionId);
         }
         
         return root;
@@ -173,7 +172,7 @@ public class SignUpServlet extends HttpServlet {
     
     // More efficient lookup using the HashMap
     private boolean isUserSignedUp(int userId, int sessionId) {
-        Map<Integer, Long> userSessions = userSessionMap.get(userId);
+        Map<Integer, Boolean> userSessions = userSessionMap.get(userId);
         return userSessions != null && userSessions.containsKey(sessionId);
     }
     
@@ -278,7 +277,7 @@ public class SignUpServlet extends HttpServlet {
             else if (userIdParam != null) {
                 int userId = Integer.parseInt(userIdParam);
                 
-                Map<Integer, Long> userSessions = userSessionMap.getOrDefault(userId, new HashMap<>());
+                Map<Integer, Boolean> userSessions = userSessionMap.getOrDefault(userId, new HashMap<>());
                 writer.print(new Gson().toJson(userSessions.keySet()));
             } 
             // If only sessionId provided, count signups for session
@@ -287,7 +286,7 @@ public class SignUpServlet extends HttpServlet {
                 
                 int count = 0;
                 // Iterate over a snapshot of the map to avoid ConcurrentModificationException
-                for (Map<Integer, Long> sessions : userSessionMap.values()) {
+                for (Map<Integer, Boolean> sessions : userSessionMap.values()) {
                     if (sessions.containsKey(sessionId)) {
                         count++;
                     }
@@ -330,8 +329,6 @@ public class SignUpServlet extends HttpServlet {
             return;
         }
         
-        long timestamp = System.currentTimeMillis();
-        
         // First try to insert into database
         try (Connection conn = getConnection();
              PreparedStatement pstmt = conn.prepareStatement(INSERT_SIGNUP)) {
@@ -345,11 +342,11 @@ public class SignUpServlet extends HttpServlet {
                 // Database update successful, now update in-memory structures (atomically)
                 synchronized (this) {
                     // Update BST
-                    insertSignup(signupRequest.getUserId(), signupRequest.getSessionId(), timestamp);
+                    insertSignup(signupRequest.getUserId(), signupRequest.getSessionId());
                     
                     // Update lookup map
                     userSessionMap.computeIfAbsent(signupRequest.getUserId(), k -> new ConcurrentHashMap<>())
-                            .put(signupRequest.getSessionId(), timestamp);
+                            .put(signupRequest.getSessionId(), true);
                 }
                 
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -416,7 +413,7 @@ public class SignUpServlet extends HttpServlet {
                         removeSessionFromUser(userId, sessionId);
                         
                         // Update lookup map
-                        Map<Integer, Long> userSessions = userSessionMap.get(userId);
+                        Map<Integer, Boolean> userSessions = userSessionMap.get(userId);
                         if (userSessions != null) {
                             userSessions.remove(sessionId);
                             if (userSessions.isEmpty()) {
@@ -442,3 +439,4 @@ public class SignUpServlet extends HttpServlet {
         }
     }
 }
+
