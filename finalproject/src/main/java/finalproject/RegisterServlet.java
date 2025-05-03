@@ -78,6 +78,19 @@ public class RegisterServlet extends HttpServlet {
                 Cookie c = new Cookie("loginemail", email);
                 c.setPath("/");
                 response.addCookie(c);
+                
+                //saving the user id into a cookie
+            	PreparedStatement getId = conn.prepareStatement("SELECT UserID FROM Users WHERE Email = ?");
+            	getId.setString(1, email);
+            	ResultSet idResult = getId.executeQuery();
+            	if (idResult.next()) {
+            	    int userId = idResult.getInt("UserID");
+            	    Cookie userIdCookie = new Cookie("userid", String.valueOf(userId));
+            	    userIdCookie.setPath("/");
+            	    response.addCookie(userIdCookie);
+            	}
+            	idResult.close();
+            	getId.close();
             }
         } catch (SQLException e) {
             res.success = false;
