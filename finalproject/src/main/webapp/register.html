@@ -363,6 +363,18 @@
 	    }
 	    
 	    document.addEventListener('DOMContentLoaded', function() {
+	        document.getElementById('search-btn').addEventListener('click', function() {
+	            window.location.href = 'index.html';
+	        });
+	        
+	        document.getElementById('login-btn').addEventListener('click', function() {
+	            window.location.href = 'login.html';
+	        });
+	        
+	        document.getElementById('register-btn').addEventListener('click', function() {
+	            window.location.href = 'register.html';
+	        });
+	        
 	        setupRegisterForm();
 	    });
     </script>
