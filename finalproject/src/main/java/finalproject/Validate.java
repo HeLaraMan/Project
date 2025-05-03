@@ -21,7 +21,7 @@ public class Validate extends HttpServlet {
 	private static final long serialVersionUID = 1L;
 	
 	//FOR THE GRADERS: CHANGE THE DATABASE CREDENTIALS HERE
-    private static final String sqlusername= "root";
+	private static final String sqlusername= "root";
     private static final String sqlpassword = "AWang@SQL01!";
 	
 	protected void service(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { DayPilotCalendar } from "@daypilot/daypilot-lite-react";
-import { fetchSessions, signUpSession } from "../services/api";
+import { fetchSessions, signUpSession, getUserIdCookie } from "../services/api";
 
 function StudentView() {
   const [events, setEvents] = useState([]);
@@ -17,6 +17,28 @@ function StudentView() {
     }
     loadSessions();
   }, []);
+
+  //this is for notifications
+  useEffect(() => {
+    const userId = getUserIdCookie();
+    if (!userId) return;
+
+    const socket = new WebSocket(`ws://localhost:8080/finalproject/notifications/${userId}`);
+
+    socket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "notification") {
+        alert(`${data.title}\n${data.message}`);
+      }
+    };
+
+    socket.onerror = (err) => {
+      console.error("WebSocket error:", err);
+    };
+
+    return () => socket.close(); // Clean up connection when component unmounts
+  }, []);
+
 
   useEffect(() => {
     // Force refresh calendar view after mount

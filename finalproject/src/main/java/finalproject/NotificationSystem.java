@@ -7,6 +7,7 @@ import java.util.concurrent.*;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import javax.websocket.*;
+import javax.websocket.server.PathParam;
 import javax.websocket.server.ServerEndpoint;
 
 /**
@@ -143,7 +144,8 @@ public class NotificationSystem {
                 session.getBasicRemote().sendText(gson.toJson(notificationJson));
                 
                 // Mark as delivered
-                notificationRepository.markNotificationDelivered(notification.getId());
+                int nid = Integer.parseInt(notification.getId());
+                notificationRepository.markNotificationDelivered(nid);
             } catch (Exception e) {
                 System.err.println("Error sending pending notification: " + e.getMessage());
                 e.printStackTrace();
@@ -173,13 +175,18 @@ public class NotificationSystem {
         }
         connectionManager.closeConnection();
     }
+    
+    public void markNotificationDelivered(int notificationId) {
+    	NotificationRepository repo = new NotificationRepository();
+    	repo.markNotificationDelivered(notificationId);
+    }
 }
 
 /**
  * WebSocket endpoint for browser connections
  */
-@ServerEndpoint(value = "/notifications/{userId}")
-public class NotificationWebSocketEndpoint {
+@ServerEndpoint("/notifications/{userId}")
+class NotificationWebSocketEndpoint {
     
     private static NotificationSystem notificationSystem = new NotificationSystem();
     private String userId;
@@ -222,7 +229,7 @@ public class NotificationWebSocketEndpoint {
             String type = jsonMessage.get("type").getAsString();
             
             if ("ack".equals(type)) {
-                String notificationId = jsonMessage.get("notificationId").getAsString();
+                int notificationId = jsonMessage.get("notificationId").getAsInt();
                 // Process acknowledgment
                 notificationSystem.markNotificationDelivered(notificationId);
             } else if ("ping".equals(type)) {
@@ -458,16 +465,18 @@ class NotificationRepository {
     /**
      * Mark a notification as delivered in the database
      */
-    public void markNotificationDelivered(String notificationId) {
+    public void markNotificationDelivered(int notificationId) {
         Connection conn = null;
         PreparedStatement stmt = null;
         
         try {
             conn = connectionManager.getConnection();
             
+            String nid = Integer.toString(notificationId);
+            
             String sql = "UPDATE Notifications SET Delivered = true WHERE NotificationID = ?";
             stmt = conn.prepareStatement(sql);
-            stmt.setString(1, notificationId);
+            stmt.setString(1, nid);
             stmt.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Database error marking notification delivered: " + e.getMessage());

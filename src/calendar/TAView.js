@@ -65,7 +65,7 @@ function TAView() {
     const sessionId = args.e?.data?.id;
 
     if (!sessionId) {
-      alert("⚠️ This session has no ID and cannot be deleted.");
+      alert("This session has no ID and cannot be deleted.");
       return;
     }
 

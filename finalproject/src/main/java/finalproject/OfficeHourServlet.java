@@ -9,23 +9,22 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.*;
 import com.google.gson.Gson;
-import java.util.Map;
-import java.util.HashMap;
-
-
 
 @WebServlet("/sessions")
 public class OfficeHourServlet extends HttpServlet {
-
-    // HashMap data structure for caching sessions
+    
+	// HashMap data structure for caching sessions
     private static final Map<Integer, Session> sessionCache = new HashMap<>();
-    private static final long CACHE_TTL = 300000; // 5 minutes in milliseconds
     private static final Map<Integer, Long> cacheTimestamps = new HashMap<>();
+    private static final long CACHE_TTL = 300000; // 5 minutes in milliseconds
 
     // Cache methods
     private Session getFromCache(int sessionId) {
@@ -37,15 +36,16 @@ public class OfficeHourServlet extends HttpServlet {
     }
 
     private void addToCache(Session session) {
-        sessionCache.put(session.getId(), session);
-        cacheTimestamps.put(session.getId(), System.currentTimeMillis());
+        sessionCache.put(session.getSessionId(), session);
+        cacheTimestamps.put(session.getSessionId(), System.currentTimeMillis());
     }
 
     private void removeFromCache(int sessionId) {
         sessionCache.remove(sessionId);
         cacheTimestamps.remove(sessionId);
     }
-    private static final long serialVersionUID = 1L;
+	
+	private static final long serialVersionUID = 1L;
 
     //FOR MY TEAMMATES: CHANGE THE DATABASE CREDENTIALS HERE
     private static final String sqlusername= "root";
@@ -88,34 +88,34 @@ public class OfficeHourServlet extends HttpServlet {
         List<Session> sessions = new ArrayList<>();
         
         try (Connection conn = getConnection();
-        Statement stmt = conn.createStatement();
-        ResultSet rs = stmt.executeQuery(GET_ALL_SESSIONS)) {
-        
-        while (rs.next()) {
-            int sessionId = rs.getInt("SessionID");
+            Statement stmt = conn.createStatement();
+            ResultSet rs = stmt.executeQuery(GET_ALL_SESSIONS)) {
             
-            // Try getting from cache first
-            Session cachedSession = getFromCache(sessionId);
-            if (cachedSession != null) {
-                sessions.add(cachedSession);
-                continue;
+            while (rs.next()) {
+            	int sessionId = rs.getInt("SessionID");
+                
+                // Try getting from cache first
+                Session cachedSession = getFromCache(sessionId);
+                if (cachedSession != null) {
+                    sessions.add(cachedSession);
+                    continue;
+                } 
+                
+                // If not in cache, create new session from database
+                Session session = new Session();
+                session.setSessionId(rs.getInt("SessionID"));
+                session.setUserId(rs.getInt("UserID"));
+                session.setCourseId(rs.getInt("CourseID"));
+                session.setStart(rs.getString("StartTime"));
+                session.setEnd(rs.getString("EndTime"));
+                session.setInstructorName(rs.getString("fName"));
+                session.setCourseName(rs.getString("CourseName"));
+                
+                sessions.add(session);
+                
+                // Add to cache
+                addToCache(session);
             }
-            
-            // If not in cache, create new session from database
-            Session session = new Session();
-            session.setId(sessionId);
-            session.setUserId(rs.getInt("UserID"));
-            session.setCourseId(rs.getInt("CourseID"));
-            session.setStart(rs.getString("StartTime"));
-            session.setEnd(rs.getString("EndTime"));
-            session.setInstructorName(rs.getString("fName"));
-            session.setCourseName(rs.getString("CourseName"));
-            
-            sessions.add(session);
-            
-            // Add to cache
-            addToCache(session);
-        }            
             out.print(gson.toJson(sessions));
             
         } catch (SQLException e) {
@@ -132,87 +132,133 @@ public class OfficeHourServlet extends HttpServlet {
         Gson gson = new Gson();
         Session newSession = gson.fromJson(request.getReader(), Session.class);
 
-        try (Connection conn = getConnection();
-            PreparedStatement pstmt = conn.prepareStatement(INSERT_SESSION, Statement.RETURN_GENERATED_KEYS)) {
-            
-            pstmt.setInt(1, newSession.getUserId());
-            pstmt.setInt(2, newSession.getCourseId());
-            pstmt.setString(3, newSession.getStart());
-            pstmt.setString(4, newSession.getEnd());
-            
-            int affectedRows = pstmt.executeUpdate();
-            
-            if (affectedRows == 0) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                response.getWriter().print(gson.toJson(new ErrorResponse("Creating session failed, no rows affected.")));
-                return;
-            }
-            
-            try (ResultSet generatedKeys = pstmt.getGeneratedKeys()) {
-                if (generatedKeys.next()) {
-                    newSession.setId(generatedKeys.getInt(1));
-                    response.setStatus(HttpServletResponse.SC_CREATED);
-                    response.getWriter().print(gson.toJson(newSession));
+        //System.out.println("DEBUG: UserID = " + newSession.getUserId());
+        //System.out.println("DEBUG: CourseName = " + newSession.getCourseName());
+
+        try (Connection conn = getConnection()) {
+
+            // 1, resolve CourseID from CourseName (insert if it doesn't exist)
+            int courseId = -1;
+
+            PreparedStatement checkCourse = conn.prepareStatement("SELECT CourseID FROM Courses WHERE CourseName = ?");
+            checkCourse.setString(1, newSession.getCourseName());
+            ResultSet rs = checkCourse.executeQuery();
+
+            if (rs.next()) {
+                courseId = rs.getInt("CourseID");
+            } else {
+                PreparedStatement insertCourse = conn.prepareStatement(
+                    "INSERT INTO Courses (CourseName) VALUES (?)", Statement.RETURN_GENERATED_KEYS);
+                insertCourse.setString(1, newSession.getCourseName());
+                insertCourse.executeUpdate();
+
+                ResultSet generated = insertCourse.getGeneratedKeys();
+                if (generated.next()) {
+                    courseId = generated.getInt(1);
                 } else {
-                    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                    response.getWriter().print(gson.toJson(new ErrorResponse("Creating session failed, no ID obtained.")));
+                    throw new SQLException("Failed to retrieve generated CourseID");
                 }
             }
-            
+
+            // 2, insert the new session using the resolved CourseID
+            PreparedStatement ps = conn.prepareStatement(
+                "INSERT INTO Sessions (UserID, CourseID, StartTime, EndTime) VALUES (?, ?, ?, ?)");
+
+            String email = newSession.getEmail();  // add this field to Session.java
+            int userId = -1;
+
+            PreparedStatement findUser = conn.prepareStatement("SELECT UserID FROM Users WHERE Email = ?");
+            findUser.setString(1, email);
+            ResultSet rsUser = findUser.executeQuery();
+
+            if (rsUser.next()) {
+                userId = rsUser.getInt("UserID");
+            } else {
+                throw new SQLException("No user found for email: " + email);
+            }
+
+            ps.setInt(1, userId);
+            ps.setInt(2, courseId);
+            ps.setString(3, newSession.getStart());
+            ps.setString(4, newSession.getEnd());
+
+            ps.executeUpdate();
+
+            response.setStatus(HttpServletResponse.SC_CREATED);
+            response.getWriter().println("Session created successfully.");
+
         } catch (SQLException e) {
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getWriter().print(gson.toJson(new ErrorResponse("Database error: " + e.getMessage())));
             e.printStackTrace();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().println("Failed to create session: " + e.getMessage());
         }
     }
 
     @Override
     protected void doDelete(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String pathInfo = request.getPathInfo(); // e.g., /5
-        if (pathInfo == null || pathInfo.length() <= 1) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            return;
-        }
+        int sessionId = Integer.parseInt(request.getParameter("sessionId"));
+        String email = request.getParameter("email");
 
-        try {
-            int id = Integer.parseInt(pathInfo.substring(1));
-            
-            try (Connection conn = getConnection();
-                PreparedStatement pstmt = conn.prepareStatement(DELETE_SESSION)) {
-                
-                pstmt.setInt(1, id);
-                int affectedRows = pstmt.executeUpdate();
-                
-                if (affectedRows == 0) {
-                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
-                    response.getWriter().print(new Gson().toJson(new ErrorResponse("Session with ID " + id + " not found.")));
-                } else {
-                    response.setStatus(HttpServletResponse.SC_NO_CONTENT);
-                }
-                
-            } catch (SQLException e) {
-                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-                response.getWriter().print(new Gson().toJson(new ErrorResponse("Database error: " + e.getMessage())));
-                e.printStackTrace();
+        try (Connection conn = getConnection()) {
+
+            // look up user ID from the cookies email
+            int userId = -1;
+            PreparedStatement findUser = conn.prepareStatement("SELECT UserID FROM Users WHERE Email = ?");
+            findUser.setString(1, email);
+            ResultSet rsUser = findUser.executeQuery();
+            if (rsUser.next()) {
+                userId = rsUser.getInt("UserID");
+            } else {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.getWriter().println("User not found.");
+                return;
             }
-            
-        } catch (NumberFormatException e) {
-            response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
-            response.getWriter().print(new Gson().toJson(new ErrorResponse("Invalid session ID format.")));
+
+            // check if session belongs to user
+            PreparedStatement verify = conn.prepareStatement("SELECT * FROM Sessions WHERE SessionID = ? AND UserID = ?");
+            verify.setInt(1, sessionId);
+            verify.setInt(2, userId);
+            ResultSet rsVerify = verify.executeQuery();
+
+            if (!rsVerify.next()) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                response.getWriter().println("You are not authorized to delete this session.");
+                return;
+            }
+
+            // 3. Delete the session
+            PreparedStatement ps = conn.prepareStatement("DELETE FROM Sessions WHERE SessionID = ?");
+            ps.setInt(1, sessionId);
+            ps.executeUpdate();
+
+            sessionCache.remove(sessionId);
+            cacheTimestamps.remove(sessionId);
+
+            response.setStatus(HttpServletResponse.SC_OK);
+            response.getWriter().println("Session deleted successfully.");
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            response.getWriter().println("Failed to delete session: " + e.getMessage());
         }
     }
 
 private static class Session {
-        private int id;
+        private int sessionId;
         private int userId;
         private int courseId;
         private String start;
         private String end;
         private String instructorName;    // From Users table (fName)
         private String courseName;       // From Courses table
+        private String email;
         
-        public int getId() { return id; }
-        public void setId(int id) { this.id = id; }
+        public String getEmail() { return email; }
+        public void setEmail(String email) { this.email = email; }
+        
+        public int getSessionId() { return sessionId; }
+        public void setSessionId(int id) { this.sessionId = id; }
         
         public int getUserId() { return userId; }
         public void setUserId(int userId) { this.userId = userId; }
