@@ -1,6 +1,318 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - TA Schedule Helper</title>
+	<style>
+		* {
+		    margin: 0;
+		    padding: 0;
+		    box-sizing: border-box;
+		    font-family: Arial, sans-serif;
+		}
+		
+		body {
+		    display: flex;
+		    flex-direction: column;
+		    min-height: 100vh;
+		    background-color: #f5f5f5;
+		}
+		
+		header {
+		    background-color: white;
+		    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		    padding: 15px 0;
+		}
+		
+		.header-content {
+		    max-width: 1200px;
+		    margin: 0 auto;
+		    display: flex;
+		    justify-content: space-between;
+		    align-items: center;
+		    padding: 0 20px;
+		}
+		
+		h1 {
+		    color: #333;
+		    font-size: 24px;
+		}
+		
+		#auth-buttons {
+		    display: flex;
+		    gap: 10px;
+		}
+		
+		#auth-buttons button {
+		    padding: 8px 15px;
+		    border: none;
+		    border-radius: 4px;
+		    cursor: pointer;
+		    background-color: #f5f5f5;
+		    color: #333;
+		    font-weight: bold;
+		}
+		
+		#auth-buttons button.active {
+		    background-color: #0056b3;
+		    color: white;
+		}
+		
+		main {
+		    flex: 1;
+		    padding: 30px 20px;
+		    max-width: 1200px;
+		    margin: 0 auto;
+		    width: 100%;
+		}
+		
+		.auth-container {
+		    max-width: 400px;
+		    margin: 0 auto;
+		    background-color: white;
+		    border-radius: 5px;
+		    padding: 30px;
+		    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+		}
+		
+		.auth-container h2 {
+		    text-align: center;
+		    margin-bottom: 20px;
+		    color: #333;
+		}
+		
+		.form-group {
+		    margin-bottom: 5px;
+		    position: relative;
+		}
+		
+		.form-group label {
+		    display: block;
+		    margin-bottom: 8px;
+		    color: #333;
+		}
+		
+		.form-group input {
+		    width: 100%;
+		    padding: 10px;
+		    border: 1px solid #ddd;
+		    border-radius: 4px;
+		    font-size: 16px;
+		}
+		
+		.error-message {
+		    color: #dc3545;
+		    font-size: 14px;
+		    margin-top: 5px;
+		    min-height: 20px;
+		}
+		
+		.form-group .validation-message {
+		    color: #dc3545;
+		    font-size: 12px;
+		    margin-top: 5px;
+		    text-align: left;
+		    display: none;
+		}
+		
+		.auth-container button {
+		    width: 100%;
+		    padding: 12px;
+		    background-color: #0056b3;
+		    color: white;
+		    border: none;
+		    border-radius: 4px;
+		    font-size: 16px;
+		    cursor: pointer;
+		}
+		
+		.auth-container button:disabled {
+		    background-color: #82aec6;
+		    cursor: not-allowed;
+		}
+		
+		.auth-link {
+		    text-align: center;
+		    margin-top: 20px;
+		}
+		
+		.auth-link a {
+		    color: #0056b3;
+		    text-decoration: none;
+		}
+		
+		.hidden {
+		    display: none;
+		}
+	</style>
+</head>
+
+<body>
+    <header>
+        <div class="header-content">
+            <h1>TA Schedule Helper</h1>
+            <div id="auth-buttons">
+                <button id="search-btn">Schedule</button>
+                <button id="login-btn" class="active">Log in</button>
+                <button id="register-btn">Register</button>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="auth-container">
+            <h2>Login</h2>
+            <form id="login-form">
+                <div class="form-group">
+                    <label for="email">Email address</label>
+                    <input type="email" id="email" placeholder="Enter email" required>
+                    <div class="validation-message">Email must be valid</div>
+                    <div class="error-message" id="email-error"></div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="Password" required>
+                    <div class="validation-message">Password is required</div>
+                    <div class="error-message" id="password-error"></div>
+                </div>
+                <button type="submit" id="login-submit-btn" disabled>Log in</button>
+            </form>
+            <p class="auth-link">Don't have an account yet? <a href="register.html">Register</a></p>
+        </div>
+    </main>
+
+    <script>
+	    function setupLoginForm() {
+	        const loginForm = document.getElementById('login-form');
+	        const emailInput = document.getElementById('email');
+	        const passwordInput = document.getElementById('password');
+	        const loginSubmitBtn = document.getElementById('login-submit-btn');
+	        
+	        const emailValidationMessage = document.querySelector('#email + .validation-message');
+	        const passwordValidationMessage = document.querySelector('#password + .validation-message');
+	        
+	        const emailError = document.getElementById('email-error');
+	        const passwordError = document.getElementById('password-error');
+	        
+	        function validateForm() {
+	            const isEmailValid = emailInput.validity.valid;
+	            const isPasswordValid = passwordInput.value.trim() !== '';
+	
+	            loginSubmitBtn.disabled = !(isEmailValid && isPasswordValid);
+	        }
+	        
+	        function validateEmail() {
+	            const isEmailValid = emailInput.validity.valid;
+	
+	            if (!isEmailValid) {
+	                emailValidationMessage.style.display = 'block';
+	                emailInput.style.borderColor = '#dc3545';
+	            } else {
+	                emailValidationMessage.style.display = 'none';
+	                emailInput.style.borderColor = '';
+	            }
+	        }
+	        
+	        function validatePassword() {
+	            const isPasswordValid = passwordInput.value.trim() !== '';
+	
+	            if (!isPasswordValid) {
+	                passwordValidationMessage.style.display = 'block';
+	                passwordInput.style.borderColor = '#dc3545';
+	            } else {
+	                passwordValidationMessage.style.display = 'none';
+	                passwordInput.style.borderColor = '';
+	            }
+	        }
+	        
+	        emailInput.addEventListener('click', function() {
+	            emailError.textContent = '';
+	            validateEmail();
+	            validateForm();
+	        });
+	        
+	        passwordInput.addEventListener('click', function() {
+	            passwordError.textContent = '';
+	            validatePassword();
+	            validateForm();
+	        });
+	        
+	        emailInput.addEventListener('input', function() {
+	            emailError.textContent = '';
+	            validateEmail();
+	            validateForm();
+	        });
+	        
+	        passwordInput.addEventListener('input', function() {
+	            passwordError.textContent = '';
+	            validatePassword();
+	            validateForm();
+	        });
+	        
+	        loginForm.addEventListener('submit', function(e) {
+	            e.preventDefault();
+	            
+	            const email = emailInput.value.trim();
+	            const password = passwordInput.value.trim();
+	            
+	            if (!email || !password) {
+	                alert("Please fill in all fields.");
+	                return false;
+	            }
+	            
+	            const params = `emaillogin=${encodeURIComponent(email)}&password=${encodeURIComponent(password)}`;
+	            
+	            const xhttp = new XMLHttpRequest();
+	            xhttp.open("POST", "LoginServlet", true);
+	            xhttp.setRequestHeader("Content-Type", "application/x-www-form-urlencoded");
+	            
+	            xhttp.onload = function() {
+	                try {
+	                    const response = JSON.parse(this.responseText);
+	                    if (response.success) {
+	                        if (response.accountType === "Student") {
+	                            window.location.href = "/finalproject/student";
+	                        } else if (response.accountType === "TA") {
+	                            window.location.href = "/finalproject/ta";
+	                        } else {
+	                            passwordError.textContent = "Unknown account type.";
+	                        }
+	                    } else {
+	                        passwordError.textContent = response.message;
+	                    }
+	                } catch (e) {
+	                    passwordError.textContent = "Error logging in.";
+	                }
+	            };
+	            
+	            xhttp.send(params);
+	            return false;
+	        });
+	    }
+	
+	    document.addEventListener('DOMContentLoaded', function() {
+	        setupLoginForm();
+	        
+	        document.getElementById('search-btn').addEventListener('click', function() {
+	            window.location.href = 'index.html';
+	        });
+	        
+	        document.getElementById('login-btn').addEventListener('click', function() {
+	            window.location.href = 'login.html';
+	        });
+	        
+	        document.getElementById('register-btn').addEventListener('click', function() {
+	            window.location.href = 'register.html';
+	        });
+	    });
+    </script>
+</body>
+</html>
+
+<!-- <!DOCTYPE html>
+<html>
+<head>
 	<meta charset="UTF-8">
 	<title>TA Schedule Helper | Login</title>	
 	<link rel="stylesheet" type="text/css" href="style.css">
@@ -8,8 +320,8 @@
 </head>
 <body>
 
-	<!-- header code -->
-	<!-- skeleton code from https://www.w3schools.com/howto/howto_css_responsive_header.asp -->
+	header code
+	skeleton code from https://www.w3schools.com/howto/howto_css_responsive_header.asp
 	<div class="header">
 	  <a href="index.html">TA Schedule Helper</a>
 	  <div class="header-right" id="header-right">
@@ -19,12 +331,12 @@
 	  </div>
 	</div>
 
-	<!-- input form code -->
+	input form code
 	<div class="form">
 		<div class="box">
 			<p class="title">Login</p>
-			<!-- skeleton code from CSCI 201 HTML Lecture -->
-			<!-- pattern input from https://www.w3schools.com/tags/att_input_pattern.asp -->
+			skeleton code from CSCI 201 HTML Lecture
+			pattern input from https://www.w3schools.com/tags/att_input_pattern.asp
 			<form name="myform" onsubmit="return validateLogin();">
 				<div id="emaillogindiv">
 					<span class="labels">Email address</span><br />
@@ -42,10 +354,10 @@
 		<p class="gray">Don't have an account yet? <a class="register" href="register.html">Register</a></p>
 	</div>
 	
-	<!-- footer code -->
+	footer code
 	<div class="footer">
 	</div>
 	
 	
 </body>
-</html>
+</html> -->
