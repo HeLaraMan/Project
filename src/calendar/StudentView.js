@@ -10,7 +10,11 @@ function StudentView() {
     async function loadSessions() {
       try {
         const data = await fetchSessions();
-        setEvents(data);
+        const favorites = JSON.parse(localStorage.getItem('favoriteCourses') || '[]');
+        const events = data.map(event => ({ ...event,
+          backColor: favorites.some(fav => event.text.includes(fav)) ? '#FFD700' : '#E3F2FD'
+        }));
+        setEvents(events);
       } catch (error) {
         console.error("Failed to fetch sessions:", error);
       }
